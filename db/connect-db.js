@@ -6,21 +6,19 @@ const URL = process.env.MONGODB_URI;
 const DB_NAME = process.env.DB_NAME;
 
 const connectDB = async () => {
-  console.log(URL, DB_NAME);
+  console.log('Connecting to MongoDB...', URL, DB_NAME);
   try {
-    await mongoose
-      .connect(URL, {
-        dbName: DB_NAME,
-        useUnifiedTopology: true,
-      })
-      .then(() => {
-        console.log('Connected to MongoDB');
-      })
-      .catch((error) => {
-        console.error('Error connecting to MongoDB:', error);
-      });
+    await mongoose.connect(URL, {
+      dbName: DB_NAME,
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 30000, // ⏳ increase from default 10s to 30s
+      socketTimeoutMS: 45000, // ⏳ optional: increase socket timeout
+    });
+    console.log('✅ Connected to MongoDB');
   } catch (error) {
-    throw new Error('Failed to connect to the database', error.message);
+    console.error('❌ MongoDB connection error:', error.message);
+    process.exit(1);
   }
 };
 
