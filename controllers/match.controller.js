@@ -114,8 +114,11 @@ const updateMatchResult = async (req, res) => {
 
     await Promise.all([homeTeam.save(), awayTeam.save()]);
 
-    await updateLeagueStatusIfNeeded(match.leagueId);
-    res.status(200).json({ message: 'Match result updated and points table refreshed.' });
+    // await updateLeagueStatusIfNeeded(match.leagueId);
+    res.status(200).json({
+      leagueId: match.leagueId,
+      message: 'Match result updated and points table refreshed.',
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -126,7 +129,7 @@ const getPointsTable = async (req, res) => {
   try {
     const league = await League.findById(req.params.leagueId).populate('teamIds');
     if (!league) return res.status(404).json({ message: 'League not found' });
-
+    console.log(league);
     // Sort by points DESC then goal_diff DESC
     const sorted = league.teamIds.sort((a, b) => {
       if (b.points === a.points) {
@@ -137,8 +140,11 @@ const getPointsTable = async (req, res) => {
       }
       return b.points - a.points;
     });
-
-    res.status(200).json({ table: sorted });
+    const data = {
+      name: league?.name,
+      teamIds: sorted,
+    };
+    res.status(200).json(data);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
