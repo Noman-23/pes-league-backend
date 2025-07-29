@@ -70,9 +70,6 @@ const updateMatchResult = async (req, res) => {
     const match = await Match.findById(matchId);
     if (!match) return res.status(404).json({ message: 'Match not found' });
 
-    if (match.played) {
-      return res.status(400).json({ message: 'Match already played' });
-    }
 
     // Update match score
     match.homeScore = homeScore;
