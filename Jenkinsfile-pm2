@@ -1,0 +1,117 @@
+pipeline {
+    agent any
+
+    environment {
+        APP_NAME = 'pes-be'
+        APP_PORT = '8098'
+        DEPLOY_PATH = '/CICD_Deployments/uat/pes-be'
+        EMAIL_RECIPIENTS = 'aiits.aws@gmail.com,mohammadnoman2311@gmail.com'
+        PM2_PATH = '/usr/local/bin/pm2'  // Update this if PM2 is elsewhere.
+    }
+
+    stages {
+        stage('Start Build Notification') {
+            steps {
+                script {
+                    emailext(
+                        subject: "${env.JOB_NAME} - Build #${env.BUILD_NUMBER} - Start Building",
+                        body: "${env.JOB_NAME} - Build #${env.BUILD_NUMBER} is starting. Check console output at ${env.BUILD_URL} to view the results.",
+                        to: "${EMAIL_RECIPIENTS}",
+                        from: 'aiits.aws@gmail.com',
+                        replyTo: 'aiits.aws@gmail.com'
+                    )
+                }
+            }
+        }
+
+        stage('Clean Deploy Directory') {
+            steps {
+                script {
+                    sh "sudo rm -rf ${DEPLOY_PATH} && sudo mkdir -p ${DEPLOY_PATH} && sudo chown -R jenkins:jenkins ${DEPLOY_PATH}"
+                }
+            }
+        }
+
+        stage('Checkout to /CICD_Deployments/uat') {
+            steps {
+                dir("${DEPLOY_PATH}") {
+                    git credentialsId: 'git', url: 'https://github.com/Noman-23/pes-league-backend.git', branch: 'main'
+                }
+            }
+        }
+
+        stage('Install Dependencies & Setup') {
+    steps {
+        dir("${DEPLOY_PATH}") {
+            script {
+                withCredentials([file(credentialsId: 'pes-be', variable: 'ENV_FILE')]) {
+                    sh '''
+                        cp ${ENV_FILE} .env
+                        mkdir -p pages
+                        npm install
+                    '''
+                }
+            }
+        }
+    }
+}
+
+        stage('Start with PM2 as root') {
+            steps {
+                dir("${DEPLOY_PATH}") {
+                    script {
+                        sh '''
+                            export PATH=$PATH:/usr/local/bin
+
+                            echo "Stopping existing PM2 process as root"
+                            sudo pm2 stop ${APP_NAME} || true
+                            sudo pm2 delete ${APP_NAME} || true
+
+                            echo "Starting new PM2 process as root"
+                            sudo pm2 start "npm run dev" --name ${APP_NAME}
+
+                            echo "Saving PM2 process list as root"
+                            sudo pm2 save
+
+                            echo "PM2 list after restart:"
+                            sudo pm2 list
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Build Check') {
+            steps {
+                script {
+                    def status = sh(script: "sudo pm2 show ${APP_NAME} | grep status | grep -c online", returnStdout: true).trim()
+                    if (status != '1') {
+                        error "PM2 process failed to start."
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            emailext(
+                subject: "${env.JOB_NAME} - Build #${env.BUILD_NUMBER} - Build and Deployment Successful",
+                body: "The Build of ${env.JOB_NAME} - Build #${env.BUILD_NUMBER} was successful and deployed using PM2 at ${DEPLOY_PATH}.",
+                to: "${EMAIL_RECIPIENTS}",
+                from: 'aiits.aws@gmail.com',
+                replyTo: 'aiits.aws@gmail.com'
+            )
+        }
+
+        failure {
+            emailext(
+                subject: "${env.JOB_NAME} - Build #${env.BUILD_NUMBER} - Build or Deployment Failed",
+                body: "The Build of ${env.JOB_NAME} - Build #${env.BUILD_NUMBER} has failed. Please check the console output at ${env.BUILD_URL} for more details.",
+                to: "${EMAIL_RECIPIENTS}",
+                from: 'aiits.aws@gmail.com',
+                replyTo: 'aiits.aws@gmail.com'
+            )
+        }
+    }
+}
