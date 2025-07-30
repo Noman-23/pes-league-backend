@@ -6,7 +6,7 @@ pipeline {
         APP_PORT = '8098'
         DEPLOY_PATH = '/CICD_Deployments/uat/pes-be'
         EMAIL_RECIPIENTS = 'aiits.aws@gmail.com,mohammadnoman2311@gmail.com'
-        PM2_PATH = '/usr/local/bin/pm2'  // Update this if PM2 is elsewhere..
+        PM2_PATH = '/usr/local/bin/pm2'  // Update this if PM2 is elsewhere.
     }
 
     stages {
